@@ -24,19 +24,20 @@ const int trigPin = 9;
 const int echoPin = 10;
 const float calib = 1.0;
 int current_measurment = 0;
-int CHANGE_THRESH = 20;
-int FAIL_THRESH = 1000;
+int CHANGE_THRESH = 5;
+int FAIL_THRESH = 500;
+int num_measurments = 5;
 
 int convertToSound(int dist, float scale)
 {
   return dist/scale;
 }
 
-void playMelody(int* melody)
+void playMelody(int* melody, float speed_val)
 {
   for (int thisNote = 1; thisNote < (melody[0] * 2 + 1); thisNote = thisNote + 2) { // Run through the notes one at a time
     tone(speakerPin, melody[thisNote], (1000/melody[thisNote + 1]));// Play the single note
-    delay((1000/melody[thisNote + 1]) * 1.30);                        // Delay for the specified time
+    delay((1000/melody[thisNote + 1]) * 1.30 * speed_val);                        // Delay for the specified time
     noTone(speakerPin);                                                 // Silence the note that was playing
   }
 }
@@ -50,7 +51,7 @@ void setup() {
   Serial.begin(9600);
   melodies = new int*[num_melodies];
   melodies[0] = theme;
-  playMelody(life);
+  playMelody(life, 1.0);
   delay(1000); 
 }
 
@@ -72,8 +73,8 @@ void sort(int a[], int size_a)
 
 int sensor_measurements()
 {
-  int distances[9];
-  for(int i = 0; i < 9; i++)
+  int distances[num_measurments];
+  for(int i = 0; i < num_measurments; i++)
   {
     long duration;
     int distance;
@@ -93,22 +94,22 @@ int sensor_measurements()
     distances[i] = distance;
   }
 
-  sort(distances, 9);
+  sort(distances, num_measurments);
   Serial.print("Distance: ");
-  Serial.println(distances[4]);
-  return distances[4];
+  Serial.println(distances[num_measurments/2]);
+  return distances[num_measurments/2];
   
 }
 
 
-int userPlayMelody(int* melody)
+int userPlayMelody(int* melody, float speed_val)
 {
   int success = 1;
   int new_measurment = sensor_measurements();
   while(abs(current_measurment - new_measurment) < CHANGE_THRESH)
   {
     new_measurment = sensor_measurements();
-    delay(10);
+    delay(1);
     Serial.print("Wait for user start ");
   }
   current_measurment = new_measurment;
@@ -125,13 +126,13 @@ int userPlayMelody(int* melody)
     while(abs(new_measurment - current_measurment) < CHANGE_THRESH)
     {
       new_measurment = sensor_measurements();
-      delay(10);
+      //delay(1);
       Serial.print("Wait for user to play note: ");
     }
     end_time = millis();
     current_measurment = new_measurment;
     int diff_time = end_time - begin_time;
-    if(abs((1000/melody[thisNote + 1]) * 1.30 - diff_time) > FAIL_THRESH)
+    if(abs((1000/melody[thisNote + 1]) * 1.30 * speed_val - diff_time) > FAIL_THRESH)
     {
       //user failed
       success = 0;
@@ -149,7 +150,7 @@ void loop() {
   int success;
   if(user_play != 1)
   {
-    playMelody(melodies[melody_cnt]);
+    playMelody(melodies[melody_cnt], 2.0);
     delay(1000); 
     user_play = 1;
   }
@@ -158,7 +159,7 @@ void loop() {
     // bla
     //playMelody(life);
     current_measurment = sensor_measurements();
-    success = userPlayMelody(melodies[melody_cnt]);
+    success = userPlayMelody(melodies[melody_cnt], 2.0);
     if(success == 1)
     {
       melody_cnt = melody_cnt + 1;
@@ -167,11 +168,11 @@ void loop() {
         level = level + 1;
         melody_cnt = 0;
       }
-      playMelody(life);
+      playMelody(life, 1.0);
     }
     else
     {
-      playMelody(death);
+      playMelody(death, 1.0);
       melody_cnt = 0;
     }
     user_play = 0;
